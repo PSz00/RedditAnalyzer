@@ -67,17 +67,48 @@ public class SubmissionScraper
         return new(authorName, title, (DateTime)date);
     }
 
+    private List<CommentInfo>? GetCommentsInfo(string url)
+    {
+        _seleniumClient.MaxScrollToEnd();
+        _seleniumClient.Screenshot("MaxScroll");
+
+        ExpandAllComments();
+
+        var currentHtml = _seleniumClient.GetCurrentHtml();
+        var commentsList = GetCommentList(currentHtml)?.ToList();
+     
+        if (commentsList is null) return null;
+
+        var information = commentsList
+            .Select(GetInfoFromComment)
+            .Where(info => info != null)
+            .Select(info => info!)
+            .ToList();
+
+        if (information.Count != commentsList.Count)
+            throw new Exception($"Comments mismatch: Errors are happening SEND HELP to {url}");
+
+        return information;
+    }
+
     private void ExpandAllComments()
     {
         var html = _seleniumClient.GetCurrentHtml();
         var comments = GetCommentList(html);
 
-        var expandButtons = comments?
-            .SelectMany(n => n.SelectNodes(".//i[contains(@class, 'icon') and contains(@class, 'icon-expand')]"))
-            .Select(n => n.ParentNode)
-            .ToList();
+        if (comments == null) return;
 
-        if (expandButtons is null || expandButtons.Count == 0) return;
+        var expandButtons = new List<HtmlNode>();
+        foreach (var comment in comments)
+        {
+            var expandIcon = comment.SelectNodes(".//i[contains(@class, 'icon') and contains(@class, 'icon-expand')]");
+
+            if (expandIcon == null) continue;
+
+            expandButtons.AddRange(expandIcon.Select(n => n.ParentNode));
+        }
+
+        if (expandButtons.Count == 0) return;
 
         var groupedByClass = expandButtons
             .Select(n => n.Attributes["class"].Value.Split(" ")[2])
@@ -85,7 +116,7 @@ public class SubmissionScraper
             .OrderBy(g => g.Count())
             .ToList();
 
-        if (groupedByClass.Count > 2) 
+        if (groupedByClass.Count > 2)
             throw new Exception("Expanding failed either order of classes changed, or the way comments are expanded");
 
         if (groupedByClass.Count != 2) return;
@@ -104,49 +135,23 @@ public class SubmissionScraper
         }
     }
 
-    private List<CommentInfo>? GetCommentsInfo(string url)
-    {
-        _seleniumClient.MaxScrollToEnd();
-
-        ExpandAllComments();
-
-        var currentHtml = _seleniumClient.GetCurrentHtml();
-        var commentsList = GetCommentList(currentHtml)?.ToList();
-     
-        if (commentsList is null) return null;
-
-        var information = commentsList
-            .Select(GetInfoFromComment)
-            .Where(info => info != null)
-            .Select(info => info!)
-            .ToList();
-        //22 vs 29 => HOVER GetDate 
-        if (information.Count != commentsList.Count)
-            throw new Exception($"Comments mismatch: Errors are happening SEND HELP to {url}");
-
-        return information;
-    }
-
     private CommentInfo? GetInfoFromComment(HtmlNode commentElement)
     {
         var author = commentElement.SelectSingleNode(".//a[@data-testid='comment_author_link']")?.InnerText;
 
         if (author is null) return null;
 
+        var url = GetCommentsUrl(commentElement);
+
+        if (url is null) return null;
         Console.WriteLine(author);
         var date = GetDate(commentElement);
 
-        if (date is null)
-        {
-            Console.WriteLine("Date NOT loaded");
-            return null;
-        }
-        Console.WriteLine("Date LOADED");
         var text = GetCommentsText(commentElement);
 
         if (text is null) return null;
 
-        return new(author, text, (DateTime)date);
+        return new(author, text, url, date);
     }
 
     private string? GetCommentsText(HtmlNode commentElement)
@@ -184,6 +189,17 @@ public class SubmissionScraper
 
             GetNestedText(child, stringBuilder);
         }
+    }
+
+    private string? GetCommentsUrl(HtmlNode parentElement)
+    {
+        var timestamp = GetTimestampElement(parentElement);
+
+        if (timestamp is null) return null;
+
+        var url = timestamp.GetAttributes().SingleOrDefault(a => a.Name == "href")?.Value;
+
+        return url;
     }
 
     private HtmlNodeCollection? GetCommentList(HtmlDocument html)
@@ -276,13 +292,15 @@ public class SubmissionScraper
     public class CommentInfo
     {
         public string Author { get; set; }
+        public string Url { get; set; }
         public string Text { get; set; }
-        public DateTime Date { get; set; }
+        public DateTime? Date { get; set; }
 
-        public CommentInfo(string author, string text, DateTime date)
+        public CommentInfo(string author, string text, string url, DateTime? date)
         {
             Author = author;
             Text = text;
+            Url = url;
             Date = date;
         }
     }

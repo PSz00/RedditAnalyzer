@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using RedditAnalyzer.Persistence;
 
@@ -11,9 +12,11 @@ using RedditAnalyzer.Persistence;
 namespace RedditAnalyzer.Persistence.Migrations
 {
     [DbContext(typeof(RedditAnalyzerDbContext))]
-    partial class RedditAnalyzerDbContextModelSnapshot : ModelSnapshot
+    [Migration("20230519111826_AddedCommentUrl")]
+    partial class AddedCommentUrl
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -25,14 +28,10 @@ namespace RedditAnalyzer.Persistence.Migrations
             modelBuilder.Entity("RedditAnalyzer.Domain.Entities.Comment", b =>
                 {
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<DateTime?>("CreatedDate")
                         .HasColumnType("datetime2");
-
-                    b.Property<Guid>("SubmissionId")
-                        .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("Text")
                         .IsRequired()
@@ -42,14 +41,7 @@ namespace RedditAnalyzer.Persistence.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("uniqueidentifier");
-
                     b.HasKey("Id");
-
-                    b.HasIndex("SubmissionId");
-
-                    b.HasIndex("UserId");
 
                     b.ToTable("Comments");
                 });
@@ -57,14 +49,10 @@ namespace RedditAnalyzer.Persistence.Migrations
             modelBuilder.Entity("RedditAnalyzer.Domain.Entities.Submission", b =>
                 {
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<DateTime>("CreatedDate")
                         .HasColumnType("datetime2");
-
-                    b.Property<Guid>("CreatorId")
-                        .HasColumnType("uniqueidentifier");
 
                     b.Property<bool>("IsDead")
                         .HasColumnType("bit");
@@ -80,8 +68,6 @@ namespace RedditAnalyzer.Persistence.Migrations
                         .HasColumnType("uniqueidentifier");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("CreatorId");
 
                     b.HasIndex("SubredditId");
 
@@ -140,13 +126,13 @@ namespace RedditAnalyzer.Persistence.Migrations
                 {
                     b.HasOne("RedditAnalyzer.Domain.Entities.Submission", "Submission")
                         .WithMany("Comments")
-                        .HasForeignKey("SubmissionId")
+                        .HasForeignKey("Id")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.HasOne("RedditAnalyzer.Domain.Entities.User", "User")
                         .WithMany("Comments")
-                        .HasForeignKey("UserId")
+                        .HasForeignKey("Id")
                         .OnDelete(DeleteBehavior.NoAction)
                         .IsRequired();
 
@@ -159,7 +145,7 @@ namespace RedditAnalyzer.Persistence.Migrations
                 {
                     b.HasOne("RedditAnalyzer.Domain.Entities.User", "Creator")
                         .WithMany("Submissions")
-                        .HasForeignKey("CreatorId")
+                        .HasForeignKey("Id")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 

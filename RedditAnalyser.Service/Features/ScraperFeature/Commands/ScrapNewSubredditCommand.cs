@@ -31,10 +31,9 @@ internal class ScrapNewSubredditCommandHandler : ICommandHandler<ScrapNewSubredd
 
     public async Task<List<SubrreditUrlsDto>> Handle(ScrapNewSubredditCommand request, CancellationToken cancellationToken)
     {
-        var subredditUrl = await _context.Urls
-            .SingleOrDefaultAsync(url => url.Text == $"https://www.reddit.com/r/{request.SubRedditName}", cancellationToken);
+        var subreddit = await _context.Subreddits.SingleOrDefaultAsync(subreddit => subreddit.Name == request.SubRedditName);
 
-        if (subredditUrl is not null)
+        if (subreddit is not null)
             throw new Exception($"{request.SubRedditName} already exists");
 
         var newSubreddit = Subreddit.Create(request.SubRedditName);

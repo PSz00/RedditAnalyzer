@@ -34,4 +34,9 @@ public class Submission : Entity<Guid>
 
         return submission;
     }
+
+    public void AddComment(User user, string text, string url, DateTime? createdDate)
+    {
+        _comments.Add(Comment.Create(this, user, text, url, createdDate));
+    }
 }

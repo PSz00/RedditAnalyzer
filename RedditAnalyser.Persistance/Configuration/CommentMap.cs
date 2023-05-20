@@ -13,14 +13,12 @@ internal class CommentMap : IEntityTypeConfiguration<Comment>
         builder
             .HasOne(comment => comment.User)
             .WithMany(user => user.Comments)
-            .HasForeignKey(comment => comment.Id)
             .OnDelete(DeleteBehavior.NoAction)
             .IsRequired(true);
 
         builder
             .HasOne(comment => comment.Submission)
             .WithMany(submission => submission.Comments)
-            .HasForeignKey(comment => comment.Id)
             .IsRequired(true);
     }
 }

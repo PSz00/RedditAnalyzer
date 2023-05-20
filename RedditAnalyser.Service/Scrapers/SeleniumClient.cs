@@ -100,20 +100,23 @@ internal class SeleniumClient : IDisposable
 
     public void HoverElementByXPath(string xPath)
     {
+        //Problem: OPs timestamp doesnt work
+        //Solution save comments link and open in non auth mode
 
         //Screenshot("ss0.png");
-        var element = Driver.FindElement(By.XPath(xPath));
+        var element = Wait.Until(driver => driver.FindElement(By.XPath(xPath)));
         ScrollIntoView(element);
-        Console.WriteLine(element.Location.ToString());
-        Console.WriteLine(element.Size.ToString());
+        //Console.WriteLine(element.Location.ToString());
+        //Console.WriteLine(element.Size.ToString());
         //Screenshot("ss1.png");
         Thread.Sleep(100);
         //Screenshot("ss1.png");
+
         Actions.MoveToElement(element).MoveByOffset(10, 0).Perform();
-        var cursorX = (long)JavaScript.ExecuteScript("return window.cursorPosition.x;");
-        var cursorY = (long)JavaScript.ExecuteScript("return window.cursorPosition.y;");
-        Console.WriteLine($"After X: {cursorX}, Y: {cursorY}");
-        var essa = 0;
+        //var cursorX = (long)JavaScript.ExecuteScript("return window.cursorPosition.x;");
+        //var cursorY = (long)JavaScript.ExecuteScript("return window.cursorPosition.y;");
+        //Console.WriteLine($"After X: {cursorX}, Y: {cursorY}");
+        //var essa = 0;
     }
 
     public void LoginToReddit()

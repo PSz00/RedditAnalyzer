@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using RedditAnalyzer.Persistence;
 
@@ -11,9 +12,11 @@ using RedditAnalyzer.Persistence;
 namespace RedditAnalyzer.Persistence.Migrations
 {
     [DbContext(typeof(RedditAnalyzerDbContext))]
-    partial class RedditAnalyzerDbContextModelSnapshot : ModelSnapshot
+    [Migration("20230519134044_FixedUserSubmissionRelation")]
+    partial class FixedUserSubmissionRelation
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

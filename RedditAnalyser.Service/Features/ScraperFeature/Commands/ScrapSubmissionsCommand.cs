@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using RedditAnalyzer.Domain.Entities;
 using RedditAnalyzer.Persistence;
 using RedditAnalyzer.Service.Infrastructure.CQRS;
+using RedditAnalyzer.Service.Infrastructure.Extensions;
 using RedditAnalyzer.Service.Scrapers;
 
 namespace RedditAnalyzer.Service.Features.ScraperFeature.Commands;
@@ -28,63 +29,66 @@ internal class ScrapSubmissionsCommandHandler : ICommandHandler<ScrapSubmissions
         _scraper = submissionScraper;
     }
 
+    public class TestException : Exception
+    {
+
+    }
+
     public async Task<Guid> Handle(ScrapSubmissionsCommand request, CancellationToken cancellationToken)
     {
         var subreddit = await _context.Subreddits
-            .SingleOrDefaultAsync(s => s.Name == request.SubRedditName, cancellationToken);
-
-        if (subreddit is null)
-            throw new Exception($"{request.SubRedditName} Does not exist");
+            .SingleOrDefaultAsync(s => s.Name == request.SubRedditName, cancellationToken)
+            .ThrowIfNull($"{request.SubRedditName} Does not exist");
 
         var urls = await _context.Urls
             .Where(url => url.Submission == null && url.Text.Contains($"/r/{request.SubRedditName}/"))
             .Select(url => url.Text)
             .ToListAsync(cancellationToken);
 
+
         if (urls is null || urls.Count == 0)
             throw new Exception($"{request.SubRedditName} Does not have submissions to scrap");
 
-        var submissions = _scraper.GetSubmissionsInformation(urls.Take(3).TakeLast(1).ToList());
+        var submissions = _scraper.GetSubmissionsInformation(urls);
 
         await CreateSubmissions(subreddit, submissions, cancellationToken);
 
         return Guid.NewGuid();
     }
 
-    private async Task<Unit> CreateSubmissions(Subreddit subreddit ,List<SubmissionScraper.SubmissionInfo> submissions, CancellationToken cancellationToken)
+    private async Task<Unit> CreateSubmissions(Subreddit subreddit, List<SubmissionScraper.SubmissionInfo> submissions, CancellationToken cancellationToken)
     {
+        //TODO Move context reads before loop
+
         foreach (var newSubmission in submissions)
         {
-            var url = _context.Urls.SingleOrDefault(url => url.Text == newSubmission.Url);
+            var url = await _context.Urls
+                .SingleOrDefaultAsync(url => url.Text == newSubmission.Url, cancellationToken)
+                .ThrowIfNull($"Url does not exist: {newSubmission.Url}");
 
-            if (url is null)
-                throw new Exception($"Url does not exist: {newSubmission.Url}");
+            var user = _context.Users
+                .SingleOrDefault(user => user.Username == newSubmission.Author)
+                .IfNull(() => User.Create(newSubmission.Author));
 
-            var user = _context.Users.SingleOrDefault(user => user.Username == newSubmission.Author);
+            var submission = _context.Submissions
+                .SingleOrDefault(sub => sub.Url != null && sub.Url.Text == newSubmission.Url)
+                .IfNull(() => Submission.Create(subreddit, user, url, newSubmission.Title, newSubmission.Date));
 
-            if (user is null)
-                user = User.Create(newSubmission.Author);
+            newSubmission.Comments.ForEach(comment => CreateComment(submission, comment));
 
-            var submission = _context.Submissions.SingleOrDefault(sub => sub.Url != null && sub.Url.Text == newSubmission.Url);
-
-            if (submission is null)
-                submission = Submission.Create(subreddit, user, url, newSubmission.Title, newSubmission.Date);
-
-            var comments = newSubmission.Comments.Select(comment => CreateComment(submission, comment)).ToList();
-
-            await _context.Comments.AddRangeAsync(comments, cancellationToken);
+            var test = await _context.Submissions.AddAsync(submission, cancellationToken);
+            var sub = test.Entity;
         }
 
         return Unit.Value;
     }
 
-    private Comment CreateComment(Submission submission ,SubmissionScraper.CommentInfo comment)
+    private void CreateComment(Submission submission, SubmissionScraper.CommentInfo comment)
     {
         var commenter = _context.Users.SingleOrDefault(user => user.Username == comment.Author);
 
-        if (commenter is null)
-            commenter = User.Create(comment.Author);
+        commenter ??= User.Create(comment.Author);
 
-        return Comment.Create(submission, commenter, comment.Text, comment.Date);
+        submission.AddComment(commenter, comment.Text, comment.Url, comment.Date);
     }
 }

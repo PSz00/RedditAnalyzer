@@ -24,7 +24,6 @@ internal class SubmissionMap : IEntityTypeConfiguration<Submission>
         builder
             .HasOne(submission => submission.Creator)
             .WithMany(user => user.Submissions)
-            .HasForeignKey(submission => submission.Id)
             .IsRequired();
     }
 }
